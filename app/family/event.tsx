@@ -1,11 +1,22 @@
-import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     StyleSheet,
     Text,
+    TouchableOpacity,
     View,
 } from 'react-native';
+
+import {
+    router,
+    useFocusEffect,
+    useLocalSearchParams,
+} from 'expo-router';
+
+import {
+    useCallback,
+    useEffect,
+    useState,
+} from 'react';
 
 import { supabase } from '../../lib/supabase';
 
@@ -28,6 +39,14 @@ export default function EventScreen() {
       loadEvent();
     }
   }, [id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (id) {
+        loadEvent();
+      }
+    }, [id])
+  );
 
   async function loadEvent() {
     setLoading(true);
@@ -66,19 +85,36 @@ export default function EventScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{event.title}</Text>
+      <Text style={styles.title}>
+        {event.title}
+      </Text>
 
       <Text style={styles.meta}>
         {new Date(event.starts_at).toLocaleString()}
       </Text>
 
       {event.location ? (
-        <Text style={styles.meta}>{event.location}</Text>
+        <Text style={styles.meta}>
+          {event.location}
+        </Text>
       ) : null}
 
       {event.notes ? (
-        <Text style={styles.notes}>{event.notes}</Text>
+        <Text style={styles.notes}>
+          {event.notes}
+        </Text>
       ) : null}
+
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() =>
+          router.push(`/family/edit-event?id=${event.id}`)
+        }
+      >
+        <Text style={styles.buttonText}>
+          Edit Event
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -90,24 +126,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     backgroundColor: '#fff',
   },
+
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
+
   title: {
     fontSize: 38,
     fontWeight: '700',
     marginBottom: 16,
   },
+
   meta: {
     fontSize: 18,
     color: '#666',
     marginBottom: 8,
   },
+
   notes: {
     fontSize: 16,
     marginTop: 24,
     lineHeight: 24,
+  },
+
+  button: {
+    backgroundColor: 'black',
+    padding: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 28,
+  },
+
+  buttonText: {
+    color: 'white',
+    fontWeight: '600',
   },
 });
