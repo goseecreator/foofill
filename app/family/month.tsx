@@ -211,17 +211,23 @@ export default function MonthScreen() {
                         >
                             <Text style={styles.dayNumber}>{cell.day}</Text>
 
-                            <View style={styles.eventDots}>
-                                {cell.events.slice(0, 3).map((event) => (
-                                    <View key={event.id} style={styles.dot} />
+                            <View style={styles.eventPreview}>
+                                {cell.events.slice(0, 2).map((event) => (
+                                    <Text
+                                        key={event.id}
+                                        style={styles.eventText}
+                                        numberOfLines={1}
+                                    >
+                                        • {event.title}
+                                    </Text>
                                 ))}
-                            </View>
 
-                            {cell.events.length > 3 ? (
-                                <Text style={styles.moreText}>
-                                    +{cell.events.length - 3}
-                                </Text>
-                            ) : null}
+                                {cell.events.length > 2 ? (
+                                    <Text style={styles.moreText}>
+                                        +{cell.events.length - 2}
+                                    </Text>
+                                ) : null}
+                            </View>
                         </Pressable>
                     );
                 })}
@@ -282,8 +288,12 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         marginBottom: 4,
     },
-    eventDots: {
-        gap: 4,
+    eventPreview: {
+        gap: 2,
+    },
+    eventText: {
+        fontSize: 9,
+        color: '#333',
     },
     dot: {
         width: 12,
@@ -297,8 +307,8 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     todayCell: {
-    backgroundColor: '#f2f6ff',
-    borderColor: '#4c7dff',
-    borderWidth: 2,
-},
+        backgroundColor: '#f2f6ff',
+        borderColor: '#4c7dff',
+        borderWidth: 2,
+    },
 });
