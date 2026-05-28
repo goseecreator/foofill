@@ -63,17 +63,19 @@ export default function MonthScreen() {
   const grouped = useMemo(() => {
     const map: Record<string, Event[]> = {};
 
-    events.forEach((event) => {
-      const day = new Date(event.starts_at)
-        .toISOString()
-        .split('T')[0];
+   events.forEach((event) => {
+  const date = new Date(event.starts_at);
 
-      if (!map[day]) {
-        map[day] = [];
-      }
+  const day = `${date.getFullYear()}-${String(
+    date.getMonth() + 1
+  ).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-      map[day].push(event);
-    });
+  if (!map[day]) {
+    map[day] = [];
+  }
+
+  map[day].push(event);
+});
 
     return map;
   }, [events]);
@@ -97,8 +99,7 @@ export default function MonthScreen() {
       renderItem={({ item }) => (
         <View>
           <Text style={styles.day}>
-            {new Date(item).toDateString()}
-          </Text>
+{new Date(`${item}T12:00:00`).toDateString()}       </Text>
 
           <View style={styles.dayCard}>
             {grouped[item].map((event) => (
