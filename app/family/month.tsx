@@ -14,6 +14,14 @@ type Event = {
     id: string;
     title: string;
     starts_at: string;
+    event_participants?: {
+        user_id: string;
+    }[];
+};
+type Profile = {
+    id: string;
+    name: string;
+    avatar_color: string;
 };
 
 type CalendarCell = {
@@ -37,6 +45,7 @@ function getLocalDateKey(dateString: string) {
 export default function MonthScreen() {
     const [loading, setLoading] = useState(true);
     const [events, setEvents] = useState<Event[]>([]);
+    const [profiles, setProfiles] = useState<Record<string, Profile>>({});
     const [viewDate, setViewDate] = useState(new Date());
 
     useEffect(() => {
@@ -68,8 +77,14 @@ export default function MonthScreen() {
 
         const { data, error } = await supabase
             .from('events')
-            .select('id, title, starts_at')
-            .eq('family_id', membership.family_id)
+            .select(`
+    id,
+    title,
+    starts_at,
+    event_participants (
+        user_id
+    )
+`).eq('family_id', membership.family_id)
             .order('starts_at', { ascending: true });
 
         if (error) {
@@ -79,6 +94,28 @@ export default function MonthScreen() {
         }
 
         setEvents(data || []);
+        const userIds =
+            data
+                ?.flatMap(
+                    (event) =>
+                        event.event_participants?.map((p) => p.user_id) || []
+                )
+                .filter(Boolean) || [];
+
+        if (userIds.length > 0) {
+            const { data: profileData } = await supabase
+                .from('profiles')
+                .select('id, name, avatar_color')
+                .in('id', userIds);
+
+            const profileMap: Record<string, Profile> = {};
+
+            profileData?.forEach((profile) => {
+                profileMap[profile.id] = profile;
+            });
+
+            setProfiles(profileMap);
+        }
         setLoading(false);
     }
 
@@ -221,8 +258,20 @@ export default function MonthScreen() {
                                         style={styles.eventText}
                                         numberOfLines={1}
                                     >
-                                        • {event.title}
-                                    </Text>
+<Text
+  key={event.id}
+  style={[
+    styles.eventText,
+    {
+      color:
+        profiles[event.event_participants?.[0]?.user_id || '']
+          ?.avatar_color || '#333',
+    },
+  ]}
+  numberOfLines={1}
+>
+  • {event.title}
+</Text>                                    </Text>
                                 ))}
 
                                 {cell.events.length > 2 ? (
