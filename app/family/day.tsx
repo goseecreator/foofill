@@ -8,6 +8,7 @@ import {
     View,
 } from 'react-native';
 
+import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 
 type Event = {
@@ -71,8 +72,10 @@ export default function DayScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ gap: 12 }}
         renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.eventTitle}>
+<View
+  style={styles.card}
+  onTouchEnd={() => router.push(`/family/event?id=${item.id}`)}
+>            <Text style={styles.eventTitle}>
               {item.title}
             </Text>
 
