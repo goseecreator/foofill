@@ -182,8 +182,11 @@ export default function MonthScreen() {
                         return <View key={`empty-${index}`} style={styles.cell} />;
                     }
 
-                    const todayKey = getLocalDateKey(new Date().toISOString());
+                    const now = new Date();
 
+                    const todayKey = `${now.getFullYear()}-${String(
+                        now.getMonth() + 1
+                    ).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
                     const isToday = cell.key === todayKey;
 
                     return (
@@ -239,7 +242,7 @@ export default function MonthScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        paddingTop: 80,
+        paddingTop: 60,
         paddingHorizontal: 12,
         backgroundColor: '#fff',
     },
@@ -279,8 +282,8 @@ const styles = StyleSheet.create({
     },
     cell: {
         width: '14.28%',
-        aspectRatio: 1,
-        padding: 6,
+        minHeight: 92,
+        padding: 5.5,
         borderWidth: 0.5,
         borderColor: '#eee',
     },
@@ -292,14 +295,9 @@ const styles = StyleSheet.create({
         gap: 2,
     },
     eventText: {
-        fontSize: 9,
+        fontSize: 10,
         color: '#333',
-    },
-    dot: {
-        width: 12,
-        height: 12,
-        borderRadius: 999,
-        backgroundColor: '#000',
+        lineHeight: 13,
     },
     moreText: {
         fontSize: 10,
