@@ -62,54 +62,65 @@ export default function DayScreen() {
         );
     }
 
+const now = new Date();
+
+const todayKey = `${now.getFullYear()}-${String(
+  now.getMonth() + 1
+).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+const isToday = date === todayKey;
+
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>
-                {new Date(`${date}T12:00:00`).toDateString()}
+<Text
+  style={[
+    styles.title,
+    isToday && styles.todayTitle,
+  ]}
+>                {new Date(`${date}T12:00:00`).toDateString()}
             </Text>
 
             {events.length === 0 ? (
-    <View style={styles.emptyState}>
-        <Text style={styles.emptyTitle}>
-            No events today
-        </Text>
-
-        <Text style={styles.emptyText}>
-            A clear day. Add something when the rhythm calls for it.
-        </Text>
-    </View>
-) : (
-    <FlatList
-        data={events}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ gap: 12 }}
-        renderItem={({ item }) => (
-            <View
-                style={styles.card}
-                onTouchEnd={() =>
-                    router.push(`/family/event?id=${item.id}`)
-                }
-            >
-                <Text style={styles.eventTitle}>
-                    {item.title}
-                </Text>
-
-                <Text style={styles.meta}>
-                    {new Date(item.starts_at).toLocaleTimeString([], {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                    })}
-                </Text>
-
-                {item.location ? (
-                    <Text style={styles.meta}>
-                        {item.location}
+                <View style={styles.emptyState}>
+                    <Text style={styles.emptyTitle}>
+                        No events today
                     </Text>
-                ) : null}
-            </View>
-        )}
-    />
-)}
+
+                    <Text style={styles.emptyText}>
+                        A clear day. Add something when the rhythm calls for it.
+                    </Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={events}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={{ gap: 12 }}
+                    renderItem={({ item }) => (
+                        <View
+                            style={styles.card}
+                            onTouchEnd={() =>
+                                router.push(`/family/event?id=${item.id}`)
+                            }
+                        >
+                            <Text style={styles.eventTitle}>
+                                {item.title}
+                            </Text>
+
+                            <Text style={styles.meta}>
+                                {new Date(item.starts_at).toLocaleTimeString([], {
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                })}
+                            </Text>
+
+                            {item.location ? (
+                                <Text style={styles.meta}>
+                                    {item.location}
+                                </Text>
+                            ) : null}
+                        </View>
+                    )}
+                />
+            )}
 
             <TouchableOpacity
                 style={styles.fab}
@@ -175,21 +186,24 @@ const styles = StyleSheet.create({
         lineHeight: 36,
     },
     emptyState: {
-    marginTop: 40,
-    padding: 24,
-    borderRadius: 20,
-    backgroundColor: '#f4f4f4',
-},
+        marginTop: 40,
+        padding: 24,
+        borderRadius: 20,
+        backgroundColor: '#f4f4f4',
+    },
 
-emptyTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 8,
-},
+    emptyTitle: {
+        fontSize: 22,
+        fontWeight: '700',
+        marginBottom: 8,
+    },
 
-emptyText: {
-    color: '#666',
-    fontSize: 16,
-    lineHeight: 22,
+    emptyText: {
+        color: '#666',
+        fontSize: 16,
+        lineHeight: 22,
+    },
+    todayTitle: {
+  color: '#4c7dff',
 },
 });
