@@ -7,6 +7,7 @@ import {
     View,
 } from 'react-native';
 
+import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 
 type Event = {
@@ -181,8 +182,18 @@ export default function MonthScreen() {
           }
 
           return (
-            <Pressable key={cell.key} style={styles.cell}>
-              <Text style={styles.dayNumber}>{cell.day}</Text>
+<Pressable
+  key={cell.key}
+  style={styles.cell}
+  onPress={() =>
+    router.push({
+      pathname: '/family/day',
+      params: {
+        date: cell.key,
+      },
+    })
+  }
+>              <Text style={styles.dayNumber}>{cell.day}</Text>
 
               <View style={styles.eventDots}>
                 {cell.events.slice(0, 3).map((event) => (
