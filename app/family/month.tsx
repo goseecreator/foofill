@@ -33,6 +33,7 @@ function getLocalDateKey(dateString: string) {
     )}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+
 export default function MonthScreen() {
     const [loading, setLoading] = useState(true);
     const [events, setEvents] = useState<Event[]>([]);
@@ -181,27 +182,34 @@ export default function MonthScreen() {
                         return <View key={`empty-${index}`} style={styles.cell} />;
                     }
 
+                    const todayKey = getLocalDateKey(new Date().toISOString());
+
+                    const isToday = cell.key === todayKey;
+
                     return (
-                       <Pressable
-  key={cell.key}
-  style={styles.cell}
-  onPress={() =>
-    router.push({
-      pathname: '/family/day',
-      params: {
-        date: cell.key,
-      },
-    })
-  }
-  onLongPress={() =>
-    router.push({
-      pathname: '/family/create-event',
-      params: {
-        date: cell.key,
-      },
-    })
-  }
->              <Text style={styles.dayNumber}>{cell.day}</Text>
+                        <Pressable
+                            key={cell.key}
+                            style={[
+                                styles.cell,
+                                isToday && styles.todayCell,
+                            ]} onPress={() =>
+                                router.push({
+                                    pathname: '/family/day',
+                                    params: {
+                                        date: cell.key,
+                                    },
+                                })
+                            }
+                            onLongPress={() =>
+                                router.push({
+                                    pathname: '/family/create-event',
+                                    params: {
+                                        date: cell.key,
+                                    },
+                                })
+                            }
+                        >
+                            <Text style={styles.dayNumber}>{cell.day}</Text>
 
                             <View style={styles.eventDots}>
                                 {cell.events.slice(0, 3).map((event) => (
@@ -288,4 +296,9 @@ const styles = StyleSheet.create({
         color: '#666',
         marginTop: 2,
     },
+    todayCell: {
+    backgroundColor: '#f2f6ff',
+    borderColor: '#4c7dff',
+    borderWidth: 2,
+},
 });
