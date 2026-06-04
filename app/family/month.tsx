@@ -258,20 +258,20 @@ export default function MonthScreen() {
                                         style={styles.eventText}
                                         numberOfLines={1}
                                     >
-<Text
-  key={event.id}
-  style={[
-    styles.eventText,
-    {
-      color:
-        profiles[event.event_participants?.[0]?.user_id || '']
-          ?.avatar_color || '#333',
-    },
-  ]}
-  numberOfLines={1}
->
-  • {event.title}
-</Text>                                    </Text>
+                                        <Text
+                                            key={event.id}
+                                            style={[
+                                                styles.eventText,
+                                                {
+                                                    color:
+                                                        profiles[event.event_participants?.[0]?.user_id || '']
+                                                            ?.avatar_color || '#333',
+                                                },
+                                            ]}
+                                            numberOfLines={1}
+                                        >
+                                            • {event.title}
+                                        </Text>                                    </Text>
                                 ))}
 
                                 {cell.events.length > 2 ? (
