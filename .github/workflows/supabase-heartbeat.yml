@@ -1,18 +1,11 @@
-name: Supabase Heartbeat
+name: Test Workflow
 
 on:
-  schedule:
-    - cron: "0 14 * * *"
   workflow_dispatch:
 
 jobs:
-  ping:
+  test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Ping Supabase
-        run: |
-          curl -s \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/families?select=id&limit=1"
+      - run: echo "Hello Foofill"
