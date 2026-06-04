@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
     Alert,
     FlatList,
@@ -11,22 +11,28 @@ import {
 } from 'react-native';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useLocalSearchParams } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 type Member = {
-    user_id: string;
+  user_id: string;
 };
 
 export default function CreateEventScreen() {
-    const [title, setTitle] = useState('');
-    const [startsAt, setStartsAt] = useState(new Date());
-    const [showPicker, setShowPicker] = useState(false);
-    const [location, setLocation] = useState('');
-    const [members, setMembers] = useState<Member[]>([]);
-    const [selectedUserId, setSelectedUserId] = useState('');
+  const { date } = useLocalSearchParams<{ date?: string }>();
 
-    useEffect(() => {
-        loadMembers();
-    }, []);
+  const [title, setTitle] = useState('');
+  const [startsAt, setStartsAt] = useState(() => {
+    if (date) {
+      return new Date(`${date}T12:00:00`);
+    }
+
+    return new Date();
+  });
+
+  const [showPicker, setShowPicker] = useState(false);
+  const [location, setLocation] = useState('');
+  const [members, setMembers] = useState<Member[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
 
     async function loadMembers() {
         const { data: userData } = await supabase.auth.getUser();
