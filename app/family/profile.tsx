@@ -375,7 +375,7 @@ export default function ProfileScreen() {
           onPress={() => router.push('/family/invite')}
         >
           <Text style={styles.secondaryButtonText}>
-            Invite Member
+            Manage Members
           </Text>
         </TouchableOpacity>
 
