@@ -62,3 +62,5 @@ end;
 $$;
 
 grant execute on function public.add_child_family_member(text, text) to authenticated;
+
+notify pgrst, 'reload schema';
