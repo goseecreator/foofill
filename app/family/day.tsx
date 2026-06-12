@@ -10,30 +10,25 @@ import {
 
 import { router, useLocalSearchParams } from 'expo-router';
 
-import { supabase } from '../../lib/supabase';
-
-type Profile = {
-  id: string;
-  name: string;
-  avatar_color: string;
-};
-
-type Event = {
-  id: string;
-  title: string;
-  starts_at: string;
-  location: string | null;
-  event_participants?: {
-    user_id: string;
-  }[];
-};
+import {
+  CalendarEvent,
+  CalendarViewMode,
+  filterEventsByViewMode,
+  getParticipantLabel,
+  getParticipantProfiles,
+  loadFamilyCalendarEvents,
+  Profile,
+} from '../../lib/familyCalendar';
 
 export default function DayScreen() {
   const { date } = useLocalSearchParams<{ date: string }>();
 
   const [loading, setLoading] = useState(true);
-  const [events, setEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
+  const [familyMemberIds, setFamilyMemberIds] = useState<string[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<CalendarViewMode>('family');
 
   useEffect(() => {
     if (date) {
@@ -46,50 +41,15 @@ export default function DayScreen() {
 
     const start = new Date(`${date}T00:00:00`);
     const end = new Date(`${date}T23:59:59`);
+    const calendarData = await loadFamilyCalendarEvents({
+      start,
+      end,
+    });
 
-    const { data, error } = await supabase
-      .from('events')
-      .select(`
-        *,
-        event_participants (
-          user_id
-        )
-      `)
-      .gte('starts_at', start.toISOString())
-      .lte('starts_at', end.toISOString())
-      .order('starts_at', { ascending: true });
-
-    if (error) {
-      console.log(error);
-      setLoading(false);
-      return;
-    }
-
-    setEvents(data || []);
-
-    const userIds =
-      data
-        ?.flatMap(
-          (event) =>
-            event.event_participants?.map((p) => p.user_id) || []
-        )
-        .filter(Boolean) || [];
-
-    if (userIds.length > 0) {
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('id, name, avatar_color')
-        .in('id', userIds);
-
-      const profileMap: Record<string, Profile> = {};
-
-      profileData?.forEach((profile) => {
-        profileMap[profile.id] = profile;
-      });
-
-      setProfiles(profileMap);
-    }
-
+    setEvents(calendarData.events);
+    setProfiles(calendarData.profiles);
+    setFamilyMemberIds(calendarData.familyMemberIds);
+    setCurrentUserId(calendarData.currentUserId);
     setLoading(false);
   }
 
@@ -111,6 +71,11 @@ export default function DayScreen() {
   )}`;
 
   const isToday = date === todayKey;
+  const visibleEvents = filterEventsByViewMode(
+    events,
+    viewMode,
+    currentUserId
+  );
 
   return (
     <View style={styles.container}>
@@ -120,10 +85,60 @@ export default function DayScreen() {
           isToday && styles.todayTitle,
         ]}
       >
-        {new Date(`${date}T12:00:00`).toDateString()}
+        {isToday ? 'Today' : new Date(`${date}T12:00:00`).toDateString()}
       </Text>
 
-      {events.length === 0 ? (
+      <View style={styles.switchRow}>
+        {(['family', 'mine'] as CalendarViewMode[]).map((mode) => (
+          <TouchableOpacity
+            key={mode}
+            style={[
+              styles.switchButton,
+              viewMode === mode && styles.switchButtonActive,
+            ]}
+            onPress={() => setViewMode(mode)}
+          >
+            <Text
+              style={[
+                styles.switchText,
+                viewMode === mode && styles.switchTextActive,
+              ]}
+            >
+              {mode === 'family' ? 'Family' : 'Mine'}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <View style={styles.viewRow}>
+        <Text
+          style={styles.viewTab}
+          onPress={() =>
+            router.push({
+              pathname: '/family/month',
+              params: { date },
+            })
+          }
+        >
+          Month
+        </Text>
+        <Text
+          style={styles.viewTab}
+          onPress={() =>
+            router.push({
+              pathname: '/family/week',
+              params: { date },
+            })
+          }
+        >
+          Week
+        </Text>
+        <Text style={[styles.viewTab, styles.viewTabActive]}>
+          Day
+        </Text>
+      </View>
+
+      {visibleEvents.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>
             No events today
@@ -135,16 +150,14 @@ export default function DayScreen() {
         </View>
       ) : (
         <FlatList
-          data={events}
+          data={visibleEvents}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ gap: 12 }}
           renderItem={({ item }) => {
-            const assignedUserId =
-              item.event_participants?.[0]?.user_id;
-
-            const assignedProfile = assignedUserId
-              ? profiles[assignedUserId]
-              : null;
+            const participantProfiles = getParticipantProfiles(
+              item,
+              profiles
+            );
 
             return (
               <View
@@ -170,23 +183,26 @@ export default function DayScreen() {
                   </Text>
                 ) : null}
 
-                {assignedProfile ? (
-                  <View style={styles.assignedRow}>
-                    <View
-                      style={[
-                        styles.avatar,
-                        {
-                          backgroundColor:
-                            assignedProfile.avatar_color,
-                        },
-                      ]}
-                    />
+                <View style={styles.assignedRow}>
+                  {participantProfiles.map((participant) =>
+                    participant.profile?.avatar_color ? (
+                      <View
+                        key={participant.user_id}
+                        style={[
+                          styles.avatar,
+                          {
+                            backgroundColor:
+                              participant.profile.avatar_color,
+                          },
+                        ]}
+                      />
+                    ) : null
+                  )}
 
-                    <Text style={styles.assignedText}>
-                      {assignedProfile.name}
-                    </Text>
-                  </View>
-                ) : null}
+                  <Text style={styles.assignedText}>
+                    {getParticipantLabel(item, profiles, familyMemberIds)}
+                  </Text>
+                </View>
               </View>
             );
           }}
@@ -229,6 +245,54 @@ const styles = StyleSheet.create({
   },
 
   todayTitle: {
+    color: '#4c7dff',
+  },
+
+  switchRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+
+  switchButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#f1f1f1',
+    alignItems: 'center',
+  },
+
+  switchButtonActive: {
+    backgroundColor: 'black',
+  },
+
+  switchText: {
+    color: '#333',
+    fontWeight: '600',
+  },
+
+  switchTextActive: {
+    color: 'white',
+  },
+
+  viewRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+
+  viewTab: {
+    flex: 1,
+    textAlign: 'center',
+    paddingVertical: 9,
+    borderRadius: 12,
+    backgroundColor: '#f1f1f1',
+    color: '#333',
+    fontWeight: '600',
+  },
+
+  viewTabActive: {
+    backgroundColor: '#e8eeff',
     color: '#4c7dff',
   },
 

@@ -4,49 +4,41 @@ import {
     Pressable,
     StyleSheet,
     Text,
+    TouchableOpacity,
     View,
 } from 'react-native';
 
-import { router } from 'expo-router';
-import { supabase } from '../../lib/supabase';
-
-type Event = {
-    id: string;
-    title: string;
-    starts_at: string;
-    event_participants?: {
-        user_id: string;
-    }[];
-};
-type Profile = {
-    id: string;
-    name: string;
-    avatar_color: string;
-};
+import { router, useLocalSearchParams } from 'expo-router';
+import {
+    CalendarEvent,
+    CalendarViewMode,
+    filterEventsByViewMode,
+    getDateKey,
+    getLocalDateKey,
+    getParticipantLabel,
+    loadFamilyCalendarEvents,
+    Profile,
+} from '../../lib/familyCalendar';
 
 type CalendarCell = {
     day: number;
     key: string;
-    events: Event[];
+    events: CalendarEvent[];
 };
 
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function getLocalDateKey(dateString: string) {
-    const date = new Date(dateString);
-
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
-        2,
-        '0'
-    )}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-
 export default function MonthScreen() {
+    const { date } = useLocalSearchParams<{ date?: string }>();
     const [loading, setLoading] = useState(true);
-    const [events, setEvents] = useState<Event[]>([]);
+    const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [profiles, setProfiles] = useState<Record<string, Profile>>({});
-    const [viewDate, setViewDate] = useState(new Date());
+    const [familyMemberIds, setFamilyMemberIds] = useState<string[]>([]);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [viewMode, setViewMode] = useState<CalendarViewMode>('family');
+    const [viewDate, setViewDate] = useState(() =>
+        date ? new Date(`${date}T12:00:00`) : new Date()
+    );
 
     useEffect(() => {
         loadEvents();
@@ -55,74 +47,24 @@ export default function MonthScreen() {
     async function loadEvents() {
         setLoading(true);
 
-        const { data: userData } = await supabase.auth.getUser();
-        const user = userData.user;
+        const calendarData = await loadFamilyCalendarEvents();
 
-        if (!user) {
-            setLoading(false);
-            return;
-        }
-
-        const { data: membership, error: membershipError } = await supabase
-            .from('family_members')
-            .select('family_id')
-            .eq('user_id', user.id)
-            .single();
-
-        if (membershipError || !membership) {
-            console.log(membershipError);
-            setLoading(false);
-            return;
-        }
-
-        const { data, error } = await supabase
-            .from('events')
-            .select(`
-    id,
-    title,
-    starts_at,
-    event_participants (
-        user_id
-    )
-`).eq('family_id', membership.family_id)
-            .order('starts_at', { ascending: true });
-
-        if (error) {
-            console.log(error);
-            setLoading(false);
-            return;
-        }
-
-        setEvents(data || []);
-        const userIds =
-            data
-                ?.flatMap(
-                    (event) =>
-                        event.event_participants?.map((p) => p.user_id) || []
-                )
-                .filter(Boolean) || [];
-
-        if (userIds.length > 0) {
-            const { data: profileData } = await supabase
-                .from('profiles')
-                .select('id, name, avatar_color')
-                .in('id', userIds);
-
-            const profileMap: Record<string, Profile> = {};
-
-            profileData?.forEach((profile) => {
-                profileMap[profile.id] = profile;
-            });
-
-            setProfiles(profileMap);
-        }
+        setEvents(calendarData.events);
+        setProfiles(calendarData.profiles);
+        setFamilyMemberIds(calendarData.familyMemberIds);
+        setCurrentUserId(calendarData.currentUserId);
         setLoading(false);
     }
 
-    const grouped = useMemo(() => {
-        const map: Record<string, Event[]> = {};
+    const visibleEvents = useMemo(
+        () => filterEventsByViewMode(events, viewMode, currentUserId),
+        [currentUserId, events, viewMode]
+    );
 
-        events.forEach((event) => {
+    const grouped = useMemo(() => {
+        const map: Record<string, CalendarEvent[]> = {};
+
+        visibleEvents.forEach((event) => {
             const key = getLocalDateKey(event.starts_at);
 
             if (!map[key]) {
@@ -133,7 +75,7 @@ export default function MonthScreen() {
         });
 
         return map;
-    }, [events]);
+    }, [visibleEvents]);
 
     const cells = useMemo(() => {
         const currentYear = viewDate.getFullYear();
@@ -145,7 +87,7 @@ export default function MonthScreen() {
         const startOffset = firstDay.getDay();
         const totalDays = lastDay.getDate();
 
-        const nextCells: Array<CalendarCell | null> = [];
+        const nextCells: (CalendarCell | null)[] = [];
 
         for (let i = 0; i < startOffset; i++) {
             nextCells.push(null);
@@ -178,6 +120,8 @@ export default function MonthScreen() {
         setViewDate(new Date(currentYear, currentMonth + 1, 1));
     }
 
+    const selectedDateKey = getDateKey(viewDate);
+
     if (loading) {
         return (
             <View style={styles.center}>
@@ -202,6 +146,56 @@ export default function MonthScreen() {
 
                 <Text style={styles.navButton} onPress={goToNextMonth}>
                     ›
+                </Text>
+            </View>
+
+            <View style={styles.switchRow}>
+                {(['family', 'mine'] as CalendarViewMode[]).map((mode) => (
+                    <Pressable
+                        key={mode}
+                        style={[
+                            styles.switchButton,
+                            viewMode === mode && styles.switchButtonActive,
+                        ]}
+                        onPress={() => setViewMode(mode)}
+                    >
+                        <Text
+                            style={[
+                                styles.switchText,
+                                viewMode === mode && styles.switchTextActive,
+                            ]}
+                        >
+                            {mode === 'family' ? 'Family' : 'Mine'}
+                        </Text>
+                    </Pressable>
+                ))}
+            </View>
+
+            <View style={styles.viewRow}>
+                <Text style={[styles.viewTab, styles.viewTabActive]}>
+                    Month
+                </Text>
+                <Text
+                    style={styles.viewTab}
+                    onPress={() =>
+                        router.push({
+                            pathname: '/family/week',
+                            params: { date: selectedDateKey },
+                        })
+                    }
+                >
+                    Week
+                </Text>
+                <Text
+                    style={styles.viewTab}
+                    onPress={() =>
+                        router.push({
+                            pathname: '/family/day',
+                            params: { date: selectedDateKey },
+                        })
+                    }
+                >
+                    Day
                 </Text>
             </View>
 
@@ -252,27 +246,35 @@ export default function MonthScreen() {
                             <Text style={styles.dayNumber}>{cell.day}</Text>
 
                             <View style={styles.eventPreview}>
-                                {cell.events.slice(0, 2).map((event) => (
-                                    <Text
-                                        key={event.id}
-                                        style={styles.eventText}
-                                        numberOfLines={1}
-                                    >
+                                {cell.events.slice(0, 2).map((event) => {
+                                    const assignedUserId =
+                                        event.event_participants?.[0]?.user_id;
+                                    const assignedProfile = assignedUserId
+                                        ? profiles[assignedUserId]
+                                        : null;
+
+                                    return (
                                         <Text
                                             key={event.id}
                                             style={[
                                                 styles.eventText,
                                                 {
                                                     color:
-                                                        profiles[event.event_participants?.[0]?.user_id || '']
-                                                            ?.avatar_color || '#333',
+                                                        assignedProfile?.avatar_color ||
+                                                        '#333',
                                                 },
                                             ]}
                                             numberOfLines={1}
                                         >
-                                            • {event.title}
-                                        </Text>                                    </Text>
-                                ))}
+                                            • {event.title} -{' '}
+                                            {getParticipantLabel(
+                                                event,
+                                                profiles,
+                                                familyMemberIds
+                                            )}
+                                        </Text>
+                                    );
+                                })}
 
                                 {cell.events.length > 2 ? (
                                     <Text style={styles.moreText}>
@@ -284,6 +286,18 @@ export default function MonthScreen() {
                     );
                 })}
             </View>
+
+            <TouchableOpacity
+                style={styles.fab}
+                onPress={() =>
+                    router.push({
+                        pathname: '/family/create-event',
+                        params: { date: selectedDateKey },
+                    })
+                }
+            >
+                <Text style={styles.fabText}>＋</Text>
+            </TouchableOpacity>
         </View>
     );
 }
@@ -314,6 +328,48 @@ const styles = StyleSheet.create({
     monthTitle: {
         fontSize: 32,
         fontWeight: '700',
+    },
+    switchRow: {
+        flexDirection: 'row',
+        gap: 8,
+        marginBottom: 12,
+        paddingHorizontal: 12,
+    },
+    switchButton: {
+        flex: 1,
+        paddingVertical: 10,
+        borderRadius: 12,
+        backgroundColor: '#f1f1f1',
+        alignItems: 'center',
+    },
+    switchButtonActive: {
+        backgroundColor: 'black',
+    },
+    switchText: {
+        color: '#333',
+        fontWeight: '600',
+    },
+    switchTextActive: {
+        color: 'white',
+    },
+    viewRow: {
+        flexDirection: 'row',
+        gap: 8,
+        marginBottom: 12,
+        paddingHorizontal: 12,
+    },
+    viewTab: {
+        flex: 1,
+        textAlign: 'center',
+        paddingVertical: 9,
+        borderRadius: 12,
+        backgroundColor: '#f1f1f1',
+        color: '#333',
+        fontWeight: '600',
+    },
+    viewTabActive: {
+        backgroundColor: '#e8eeff',
+        color: '#4c7dff',
     },
     weekRow: {
         flexDirection: 'row',
@@ -357,5 +413,21 @@ const styles = StyleSheet.create({
         backgroundColor: '#f2f6ff',
         borderColor: '#4c7dff',
         borderWidth: 2,
+    },
+    fab: {
+        position: 'absolute',
+        right: 24,
+        bottom: 36,
+        width: 60,
+        height: 60,
+        borderRadius: 999,
+        backgroundColor: 'black',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fabText: {
+        color: 'white',
+        fontSize: 34,
+        lineHeight: 36,
     },
 });
