@@ -56,6 +56,15 @@ export default function CreateFamilyScreen() {
       <TouchableOpacity style={styles.button} onPress={createFamily}>
         <Text style={styles.buttonText}>Create Family</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.secondaryButton}
+        onPress={async () => {
+          await supabase.auth.signOut();
+        }}
+      >
+        <Text style={styles.secondaryButtonText}>Sign Out</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -66,4 +75,11 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#ccc', padding: 14, borderRadius: 12 },
   button: { backgroundColor: 'black', padding: 16, borderRadius: 12, alignItems: 'center' },
   buttonText: { color: 'white', fontWeight: '600' },
+  secondaryButton: {
+    backgroundColor: '#f1f1f1',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  secondaryButtonText: { color: '#333', fontWeight: '600' },
 });

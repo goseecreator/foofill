@@ -1,24 +1,30 @@
 import {
-    ActivityIndicator,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import {
-    router,
-    useFocusEffect,
-    useLocalSearchParams,
+  router,
+  useFocusEffect,
+  useLocalSearchParams,
 } from 'expo-router';
 
 import {
-    useCallback,
-    useEffect,
-    useState,
+  useCallback,
+  useEffect,
+  useState,
 } from 'react';
 
 import { supabase } from '../../lib/supabase';
+
+type Participant = {
+  user_id: string;
+  name?: string;
+  avatar_color?: string;
+};
 
 type Event = {
   id: string;
@@ -26,10 +32,37 @@ type Event = {
   starts_at: string;
   location: string | null;
   notes: string | null;
+  family_id: string;
 };
+
+function getParticipantLabel(
+  participants: Participant[],
+  familyMemberIds: string[]
+) {
+  if (participants.length === 0) {
+    return 'Unassigned';
+  }
+
+  const participantIds = new Set(
+    participants.map((participant) => participant.user_id)
+  );
+
+  if (
+    familyMemberIds.length > 0 &&
+    familyMemberIds.every((memberId) => participantIds.has(memberId))
+  ) {
+    return 'All Members';
+  }
+
+  return participants
+    .map((participant) => participant.name || participant.user_id.slice(0, 6))
+    .join(', ');
+}
 
 export default function EventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [familyMemberIds, setFamilyMemberIds] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<Event | null>(null);
@@ -53,7 +86,7 @@ export default function EventScreen() {
 
     const { data, error } = await supabase
       .from('events')
-      .select('id, title, starts_at, location, notes')
+      .select('id, title, starts_at, location, notes, family_id')
       .eq('id', id)
       .single();
 
@@ -64,6 +97,49 @@ export default function EventScreen() {
     }
 
     setEvent(data);
+
+    const { data: memberData } = await supabase
+      .from('family_members')
+      .select('user_id')
+      .eq('family_id', data.family_id);
+
+    setFamilyMemberIds(memberData?.map((member) => member.user_id) || []);
+
+    const { data: participantData } = await supabase
+      .from('event_participants')
+      .select('user_id')
+      .eq('event_id', id);
+
+    const userIds = participantData?.map((p) => p.user_id) || [];
+
+    if (userIds.length > 0) {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_color')
+        .in('id', userIds);
+
+      const profileMap: Record<
+        string,
+        { name: string; avatar_color: string }
+      > = {};
+
+      profileData?.forEach((profile) => {
+        profileMap[profile.id] = {
+          name: profile.name,
+          avatar_color: profile.avatar_color,
+        };
+      });
+
+      setParticipants(
+        userIds.map((userId) => ({
+          user_id: userId,
+          name: profileMap[userId]?.name,
+          avatar_color: profileMap[userId]?.avatar_color,
+        }))
+      );
+    } else {
+      setParticipants([]);
+    }
     setLoading(false);
   }
 
@@ -83,6 +159,8 @@ export default function EventScreen() {
     );
   }
 
+  const participantLabel = getParticipantLabel(participants, familyMemberIds);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>
@@ -98,6 +176,13 @@ export default function EventScreen() {
           {event.location}
         </Text>
       ) : null}
+
+      <Text style={styles.meta}>
+        {participantLabel === 'All Members' ||
+        participantLabel === 'Unassigned'
+          ? participantLabel
+          : `Assigned: ${participantLabel}`}
+      </Text>
 
       {event.notes ? (
         <Text style={styles.notes}>

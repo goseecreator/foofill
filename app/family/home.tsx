@@ -47,10 +47,15 @@ if (!user) {
 
     setRole(data.role);
 
-    if (Array.isArray(data.families)) {
-      setFamilyName(data.families[0]?.name ?? '');
+    const families = data.families as
+      | { name?: string }
+      | { name?: string }[]
+      | null;
+
+    if (Array.isArray(families)) {
+      setFamilyName(families[0]?.name ?? '');
     } else {
-      setFamilyName(data.families?.name ?? '');
+      setFamilyName(families?.name ?? '');
     }
 
     setLoading(false);
@@ -72,46 +77,26 @@ if (!user) {
         Your role: {role}
       </Text>
 
-     <TouchableOpacity
-  style={styles.card}
-  onPress={() => router.push('/family/create-event')}
->
-  <Text style={styles.cardTitle}>Create Event</Text>
-</TouchableOpacity>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => router.push('/family/month')}
+      >
+        <Text style={styles.cardTitle}>Calendar</Text>
+      </TouchableOpacity>
 
-<TouchableOpacity 
-    style={styles.card}
-    onPress={() => router.push('/family/invite')}>
-  <Text style={styles.cardTitle}>Invite Member</Text>
-</TouchableOpacity>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => router.push('/family/create-event')}
+      >
+        <Text style={styles.cardTitle}>Create Event</Text>
+      </TouchableOpacity>
 
-<TouchableOpacity
-  style={styles.card}
-  onPress={() => router.push('/family/invitations')}
->
-  <Text style={styles.cardTitle}>Invitations</Text>
-</TouchableOpacity>
-
-<TouchableOpacity
-  style={styles.card}
-  onPress={() => router.push('/family/profile')}
->
-  <Text style={styles.cardTitle}>Profile</Text>
-</TouchableOpacity>
-
-<TouchableOpacity
-  style={styles.card}
-  onPress={() => router.push('/family/calendar')}
->
-  <Text style={styles.cardTitle}>View Calendar</Text>
-</TouchableOpacity>
-
-<TouchableOpacity
-  style={styles.card}
-  onPress={() => router.push('/family/month')}
->
-  <Text style={styles.cardTitle}>Month View</Text>
-</TouchableOpacity>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => router.push('/family/profile')}
+      >
+        <Text style={styles.cardTitle}>Profile</Text>
+      </TouchableOpacity>
 
 <TouchableOpacity
   style={styles.card}

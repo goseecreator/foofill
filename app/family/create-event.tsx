@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Alert,
     FlatList,
@@ -15,6 +15,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 type Member = {
   user_id: string;
+  name?: string;
+  avatar_color?: string;
 };
 
 export default function CreateEventScreen() {
@@ -34,6 +36,10 @@ export default function CreateEventScreen() {
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedUserId, setSelectedUserId] = useState('');
 
+    useEffect(() => {
+        loadMembers();
+    }, []);
+
     async function loadMembers() {
         const { data: userData } = await supabase.auth.getUser();
         const user = userData.user;
@@ -48,7 +54,7 @@ export default function CreateEventScreen() {
 
         if (!membership) return;
 
-        const { data, error } = await supabase
+        const { data: memberData, error } = await supabase
             .from('family_members')
             .select('user_id')
             .eq('family_id', membership.family_id);
@@ -58,7 +64,35 @@ export default function CreateEventScreen() {
             return;
         }
 
-        setMembers(data || []);
+        const userIds = memberData?.map((member) => member.user_id) || [];
+
+        if (userIds.length === 0) {
+            setMembers([]);
+            return;
+        }
+
+        const { data: profileData } = await supabase
+            .from('profiles')
+            .select('id, name, avatar_color')
+            .in('id', userIds);
+
+        const profileMap: Record<string, { name: string; avatar_color: string }> = {};
+
+        profileData?.forEach((profile) => {
+            profileMap[profile.id] = {
+                name: profile.name,
+                avatar_color: profile.avatar_color,
+            };
+        });
+
+        const membersWithProfiles =
+            memberData?.map((member) => ({
+                user_id: member.user_id,
+                name: profileMap[member.user_id]?.name,
+                avatar_color: profileMap[member.user_id]?.avatar_color,
+            })) || [];
+
+        setMembers(membersWithProfiles);
     }
 
     async function createEvent() {
@@ -91,7 +125,20 @@ export default function CreateEventScreen() {
             return Alert.alert(error?.message || 'Failed');
         }
 
-        if (selectedUserId) {
+        if (selectedUserId === 'all') {
+            const rows = members.map((member) => ({
+                event_id: event.id,
+                user_id: member.user_id,
+            }));
+
+            const { error: participantError } = await supabase
+                .from('event_participants')
+                .insert(rows);
+
+            if (participantError) {
+                return Alert.alert(participantError.message);
+            }
+        } else if (selectedUserId) {
             const { error: participantError } = await supabase
                 .from('event_participants')
                 .insert({
@@ -156,25 +203,47 @@ export default function CreateEventScreen() {
                 data={members}
                 keyExtractor={(item) => item.user_id}
                 horizontal
-                contentContainerStyle={{ gap: 10 }}
+                style={styles.memberList}
+                contentContainerStyle={styles.memberListContent}
+                ListHeaderComponent={
+                    <Pressable
+                        onPress={() =>
+                            setSelectedUserId(
+                                selectedUserId === 'all' ? '' : 'all'
+                            )
+                        }
+                        style={[
+                            styles.member,
+                            styles.allMember,
+                            selectedUserId === 'all' &&
+                                styles.memberSelected,
+                        ]}
+                    >
+                        <Text style={styles.memberText}>
+                            All Members
+                        </Text>
+                    </Pressable>
+                }
                 renderItem={({ item }) => {
                     const selected = selectedUserId === item.user_id;
+                    const memberColor = item.avatar_color || '#333';
 
                     return (
                         <Pressable
                             onPress={() => setSelectedUserId(item.user_id)}
                             style={[
                                 styles.member,
+                                {
+                                    backgroundColor: memberColor,
+                                    borderColor: memberColor,
+                                },
                                 selected && styles.memberSelected,
                             ]}
                         >
                             <Text
-                                style={[
-                                    styles.memberText,
-                                    selected && styles.memberTextSelected,
-                                ]}
+                                style={styles.memberText}
                             >
-                                {item.user_id.slice(0, 6)}
+                                {item.name || item.user_id.slice(0, 6)}
                             </Text>
                         </Pressable>
                     );
@@ -218,20 +287,35 @@ const styles = StyleSheet.create({
         marginTop: 10,
     },
     member: {
-        paddingVertical: 12,
-        paddingHorizontal: 18,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        alignSelf: 'flex-start',
+        height: 34,
+        paddingVertical: 8,
+        paddingHorizontal: 14,
         borderRadius: 999,
+        borderWidth: 2,
         backgroundColor: '#f1f1f1',
     },
     memberSelected: {
-        backgroundColor: 'black',
+        borderColor: 'black',
+    },
+    allMember: {
+        backgroundColor: '#333',
+        borderColor: '#333',
+    },
+    memberList: {
+        maxHeight: 42,
+        flexGrow: 0,
+    },
+    memberListContent: {
+        gap: 10,
+        alignItems: 'flex-start',
     },
     memberText: {
-        color: '#333',
-        fontWeight: '600',
-    },
-    memberTextSelected: {
         color: 'white',
+        fontWeight: '600',
     },
     button: {
         backgroundColor: 'black',
