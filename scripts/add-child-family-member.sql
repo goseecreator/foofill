@@ -1,8 +1,10 @@
 create extension if not exists pgcrypto;
 
+-- Run this full script in Supabase SQL Editor. Do not add RLS helper snippets
+-- inside the function body.
 -- Parent-managed child profiles do not have auth.users rows. These identity
 -- columns must allow both real auth user ids and local child profile ids.
-do $$
+do $drop_auth_user_fk$
 declare
   constraint_name text;
 begin
@@ -69,7 +71,9 @@ begin
     execute format('alter table public.event_participants drop constraint %I', constraint_name);
   end if;
 end;
-$$;
+$drop_auth_user_fk$;
+
+drop function if exists public.add_child_family_member(text, text);
 
 create or replace function public.add_child_family_member(
   child_name text,
@@ -79,7 +83,7 @@ returns uuid
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $add_child_family_member$
 declare
   current_family_id uuid;
   child_id uuid := gen_random_uuid();
@@ -130,7 +134,7 @@ begin
 
   return child_id;
 end;
-$$;
+$add_child_family_member$;
 
 grant execute on function public.add_child_family_member(text, text) to authenticated;
 
