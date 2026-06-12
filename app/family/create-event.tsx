@@ -125,7 +125,20 @@ export default function CreateEventScreen() {
             return Alert.alert(error?.message || 'Failed');
         }
 
-        if (selectedUserId) {
+        if (selectedUserId === 'all') {
+            const rows = members.map((member) => ({
+                event_id: event.id,
+                user_id: member.user_id,
+            }));
+
+            const { error: participantError } = await supabase
+                .from('event_participants')
+                .insert(rows);
+
+            if (participantError) {
+                return Alert.alert(participantError.message);
+            }
+        } else if (selectedUserId) {
             const { error: participantError } = await supabase
                 .from('event_participants')
                 .insert({
@@ -192,6 +205,25 @@ export default function CreateEventScreen() {
                 horizontal
                 style={styles.memberList}
                 contentContainerStyle={styles.memberListContent}
+                ListHeaderComponent={
+                    <Pressable
+                        onPress={() =>
+                            setSelectedUserId(
+                                selectedUserId === 'all' ? '' : 'all'
+                            )
+                        }
+                        style={[
+                            styles.member,
+                            styles.allMember,
+                            selectedUserId === 'all' &&
+                                styles.memberSelected,
+                        ]}
+                    >
+                        <Text style={styles.memberText}>
+                            All Members
+                        </Text>
+                    </Pressable>
+                }
                 renderItem={({ item }) => {
                     const selected = selectedUserId === item.user_id;
                     const memberColor = item.avatar_color || '#333';
@@ -268,6 +300,10 @@ const styles = StyleSheet.create({
     },
     memberSelected: {
         borderColor: 'black',
+    },
+    allMember: {
+        backgroundColor: '#333',
+        borderColor: '#333',
     },
     memberList: {
         maxHeight: 42,
