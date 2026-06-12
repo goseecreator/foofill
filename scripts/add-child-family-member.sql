@@ -1,5 +1,76 @@
 create extension if not exists pgcrypto;
 
+-- Parent-managed child profiles do not have auth.users rows. These identity
+-- columns must allow both real auth user ids and local child profile ids.
+do $$
+declare
+  constraint_name text;
+begin
+  select tc.constraint_name
+  into constraint_name
+  from information_schema.table_constraints tc
+  join information_schema.key_column_usage kcu
+    on tc.constraint_name = kcu.constraint_name
+    and tc.table_schema = kcu.table_schema
+  join information_schema.constraint_column_usage ccu
+    on ccu.constraint_name = tc.constraint_name
+    and ccu.table_schema = tc.table_schema
+  where tc.constraint_type = 'FOREIGN KEY'
+    and tc.table_schema = 'public'
+    and tc.table_name = 'profiles'
+    and kcu.column_name = 'id'
+    and ccu.table_schema = 'auth'
+    and ccu.table_name = 'users'
+  limit 1;
+
+  if constraint_name is not null then
+    execute format('alter table public.profiles drop constraint %I', constraint_name);
+  end if;
+
+  select tc.constraint_name
+  into constraint_name
+  from information_schema.table_constraints tc
+  join information_schema.key_column_usage kcu
+    on tc.constraint_name = kcu.constraint_name
+    and tc.table_schema = kcu.table_schema
+  join information_schema.constraint_column_usage ccu
+    on ccu.constraint_name = tc.constraint_name
+    and ccu.table_schema = tc.table_schema
+  where tc.constraint_type = 'FOREIGN KEY'
+    and tc.table_schema = 'public'
+    and tc.table_name = 'family_members'
+    and kcu.column_name = 'user_id'
+    and ccu.table_schema = 'auth'
+    and ccu.table_name = 'users'
+  limit 1;
+
+  if constraint_name is not null then
+    execute format('alter table public.family_members drop constraint %I', constraint_name);
+  end if;
+
+  select tc.constraint_name
+  into constraint_name
+  from information_schema.table_constraints tc
+  join information_schema.key_column_usage kcu
+    on tc.constraint_name = kcu.constraint_name
+    and tc.table_schema = kcu.table_schema
+  join information_schema.constraint_column_usage ccu
+    on ccu.constraint_name = tc.constraint_name
+    and ccu.table_schema = tc.table_schema
+  where tc.constraint_type = 'FOREIGN KEY'
+    and tc.table_schema = 'public'
+    and tc.table_name = 'event_participants'
+    and kcu.column_name = 'user_id'
+    and ccu.table_schema = 'auth'
+    and ccu.table_name = 'users'
+  limit 1;
+
+  if constraint_name is not null then
+    execute format('alter table public.event_participants drop constraint %I', constraint_name);
+  end if;
+end;
+$$;
+
 create or replace function public.add_child_family_member(
   child_name text,
   child_color text default '#6C5CE7'
